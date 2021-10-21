@@ -198,7 +198,7 @@ max_msa = args.max_msa
 
 max_msa_clusters, max_extra_msa = [int(x) for x in max_msa.split(":")]
 
-show_images = True #@param {type:"boolean"}
+show_images = False  # @param {type:"boolean"}
 
 # --------set parameters from command-line arguments--------
 num_models = args.num_models
