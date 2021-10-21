@@ -10,10 +10,12 @@ ALPHAFOLD_DIR=`pwd`
 SOURCE_URL="https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar"
 PARAMS_DIR="${ALPHAFOLD_DIR}/alphafold/data/params"
 
-# Downloading alphafold model parameter files if execution flag is set
-echo "Downloading AlphaFold2 trained parameters..."
-mkdir -p ${PARAMS_DIR}
-curl -fL ${SOURCE_URL} | tar x -C ${PARAMS_DIR}
+# Downloading alphafold model parameter files
+if [ ! -d ${PARAMS_DIR} ];then
+    echo "Downloading AlphaFold2 trained parameters..."
+    mkdir -p ${PARAMS_DIR}
+    curl -fL ${SOURCE_URL} | tar x -C ${PARAMS_DIR}
+fi
 
 # Downloading stereo_chemical_props.txt from https://git.scicore.unibas.ch/schwede/openstructure
 streo_chemical_props_path=${ALPHAFOLD_DIR}/alphafold/common
