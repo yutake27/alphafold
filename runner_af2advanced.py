@@ -61,11 +61,12 @@ parser.add_argument("-t", "--use_turbo", action='store_true',
 parser.add_argument("-mm", "--max_msa", default="512:1024", type=str,
                     help="max_msa defines: max_msa_clusters:max_extra_msa number of sequences to use. "
                     "This option ignored if use_turbo is disabled. Default is '512:1024'.")
-parser.add_argument("-n", "--num_models", default=5, type=int,
-                    help="specify how many model params to try. (Default is 5)")
-parser.add_argument("-pt", "--use_ptm", action='store_true',
-                    help="uses Deepmind's ptm finetuned model parameters to get PAE per structure. "
-                    "Disable to use the original model params. (Disabling may give alternative structures.)")
+parser.add_argument("--num_CASP14_models", default=5, type=int,
+                    help="specify how many CASP14 model (normal model) params to try. (Default is 5)")
+parser.add_argument("--num_pTM_models", default=5, type=int,
+                    help="specify how many pTM model params to try. (Default is 5)")
+parser.add_argument("--model", type=str, choices=["CASP14", "pTM", "both"], default="CASP14",
+                    help="Model to use. CASP14 is a normal model. Both uses both models. Number of models to be used is read from num_CASP14_models and num_pTM_models respectively. (Default is CASP14)")
 parser.add_argument("-e", "--num_ensemble", default=1, type=int, choices=[1, 8],
                     help="the trunk of the network is run multiple times with different random choices for the MSA cluster centers. "
                     "(1=default, 8=casp14 setting)")
@@ -204,8 +205,9 @@ max_msa = args.max_msa
 max_msa_clusters, max_extra_msa = [int(x) for x in max_msa.split(":")]
 
 # --------set parameters from command-line arguments--------
-num_models = args.num_models
-use_ptm = True if args.use_ptm else False
+model = args.model
+num_CASP14_models = args.num_CASP14_models
+num_pTM_models = args.num_pTM_models
 num_ensemble = args.num_ensemble
 max_recycles = args.max_recycles
 tol = args.tol
@@ -214,6 +216,18 @@ num_samples = args.num_samples
 # --------set parameters from command-line arguments--------
 
 subsample_msa = True  # @param {type:"boolean"}
+
+# Set models
+models_CASP14 = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][: num_CASP14_models]
+models_pTM = ['model_1_ptm', 'model_2_ptm', 'model_3_ptm', 'model_4_ptm', 'model_5_ptm'][: num_pTM_models]
+use_ptm = False
+if model == "CASP14":
+    model_names = models_CASP14
+elif model == "pTM":
+    model_names = models_pTM
+    use_ptm = True
+else:
+    model_names = models_CASP14 + models_pTM
 
 if not use_ptm and rank_by == "pTMscore":
     print("WARNING: models will be ranked by pLDDT, 'use_ptm' is needed to compute pTMscore")
@@ -226,7 +240,6 @@ Ls_plot = feature_dict["Ls"]
 # prep model options
 opt = {"N": len(feature_dict["msa"]),
        "L": len(feature_dict["residue_index"]),
-       "use_ptm": use_ptm,
        "use_turbo": use_turbo,
        "max_recycles": max_recycles,
        "tol": tol,
@@ -247,7 +260,7 @@ else:
 ###########################
 # run alphafold
 ###########################
-outs, model_rank = cf_af.run_alphafold(feature_dict, opt, runner, num_models, num_samples, subsample_msa,
+outs, model_rank = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples, subsample_msa,
                                        rank_by=rank_by, show_images=show_images)
 
 # %%
@@ -264,7 +277,6 @@ elif num_relax == "Top1":
 elif num_relax == "Top5":
     num_relax = 5
 else:
-    model_names = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][:num_models]
     num_relax = len(model_names) * num_samples
 
 if num_relax > 0:

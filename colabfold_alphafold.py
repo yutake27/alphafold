@@ -628,7 +628,7 @@ def clear_mem(device=None):
 
 
 OPT_DEFAULT = {"N": None, "L": None,
-               "use_ptm": True, "use_turbo": True,
+               "use_turbo": True,
                "max_recycles": 3, "tol": 0, "num_ensemble": 1,
                "max_msa_clusters": 512, "max_extra_msa": 1024,
                "is_training": False}
@@ -647,7 +647,7 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
     # if old_runner not defined or [opt]ions changed, start new runner
     if old_runner is None or old_runner["opt"] != opt:
         clear_mem()
-        name = f"{model_name}_ptm" if opt["use_ptm"] else model_name
+        name = model_name
         cfg = config.model_config(name)
 
         if opt["use_turbo"]:
@@ -670,7 +670,7 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
         return old_runner
 
 
-def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples=1, subsample_msa=True,
+def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_samples=1, subsample_msa=True,
                   pad_feats=False, rank_by="pLDDT", show_images=True, params_loc='./alphafold/data', verbose=True):
 
     def do_subsample_msa(F, random_seed=0):
@@ -738,7 +738,6 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
             if k not in opt:
                 opt[k] = OPT_DEFAULT[k]
 
-    model_names = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][:num_models]
     total = len(model_names) * num_samples
     outs = {}
 
@@ -773,7 +772,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
 
                 # go through each model
                 for num, model_name in enumerate(model_names):
-                    name = model_name+"_ptm" if opt["use_ptm"] else model_name
+                    name = model_name
                     key = f"{name}_seed_{seed}"
                     pbar.set_description(f'Running {key}')
 
@@ -801,7 +800,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, num_models=5, num_samples
         else:
             # go through each model
             for num, model_name in enumerate(model_names):
-                name = model_name+"_ptm" if opt["use_ptm"] else model_name
+                name = model_name
                 model_runner = prep_model_runner(opt, model_name=model_name, params_loc=params_loc)["model"]
 
                 # go through each random_seed
