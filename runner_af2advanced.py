@@ -78,6 +78,7 @@ parser.add_argument("--is_training", action='store_true',
 parser.add_argument("--num_samples", default=1, type=int, help="number of random_seeds to try. Default is 1.")
 parser.add_argument("--num_relax", default="None", choices=["None", "Top1", "Top5", "All"],
                     help="num_relax is 'None' (default), 'Top1', 'Top5' or 'All'. Specify how many of the top ranked structures to relax.")
+parser.add_argument("--show_images", action="store_true", default=False, help="show images")
 args = parser.parse_args()
 # command-line arguments
 # Check your OS for localcolabfold
@@ -106,6 +107,9 @@ try:
     IN_COLAB = True
 except:
     IN_COLAB = False
+
+# Set show images
+show_images = True if args.show_images else False  # @param {type:"boolean"}
 
 # %%
 # define sequence
@@ -164,8 +168,8 @@ I = cf_af.prep_msa(I, msa_method, add_custom_msa, msa_format, pair_mode, pair_co
 mod_I = I
 
 if len(I["msas"][0]) > 1:
-    plt = cf.plot_msas(I["msas"], I["ori_sequence"])
-    plt.savefig(os.path.join(I["output_dir"], "msa_coverage.png"), bbox_inches='tight', dpi=200)
+    plt_msas = cf.plot_msas(I["msas"], I["ori_sequence"], return_plt=True)
+    plt_msas.savefig(os.path.join(I["output_dir"], "msa_coverage.png"), bbox_inches='tight', dpi=200)
     # plt.show()
 # %%
 trim = ""  # @param {type:"string"}
@@ -184,7 +188,8 @@ if I["msas"] != mod_I["msas"]:
     plt.title("Sequence coverage (After)")
     cf.plot_msas(mod_I["msas"], mod_I["ori_sequence"], return_plt=False)
     plt.savefig(os.path.join(I["output_dir"], "msa_coverage.filtered.png"), bbox_inches='tight', dpi=200)
-    plt.show()
+    if show_images:
+        plt.show()
 
 # %%
 # @title run alphafold
@@ -197,8 +202,6 @@ max_msa = args.max_msa
 # --------set parameters from command-line arguments--------
 
 max_msa_clusters, max_extra_msa = [int(x) for x in max_msa.split(":")]
-
-show_images = False  # @param {type:"boolean"}
 
 # --------set parameters from command-line arguments--------
 num_models = args.num_models
@@ -304,11 +307,14 @@ if not os.path.isfile(pred_output_path):
 
 cf.show_pdb(pred_output_path, show_sidechains, show_mainchains, color, Ls=Ls_plot).show()
 if color == "lDDT":
-    cf.plot_plddt_legend().show()
+    if show_images:
+        cf.plot_plddt_legend().show()
 if use_ptm:
-    cf.plot_confidence(outs[key]["plddt"], outs[key]["pae"], Ls=Ls_plot).show()
+    plt_confidence =  cf.plot_confidence(outs[key]["plddt"], outs[key]["pae"], Ls=Ls_plot)
 else:
-    cf.plot_confidence(outs[key]["plddt"], Ls=Ls_plot).show()
+    plt_confidence = cf.plot_confidence(outs[key]["plddt"], Ls=Ls_plot)
+if show_images:
+    plt_confidence.show()
 # %%
 # @title Extra outputs
 dpi = 300  # @param {type:"integer"}
@@ -320,22 +326,26 @@ if use_ptm:
     cf.plot_paes([outs[k]["pae"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
     plt.savefig(os.path.join(I["output_dir"], f'predicted_alignment_error.png'),
                 bbox_inches='tight', dpi=np.maximum(200, dpi))
-    plt.show()
+    if show_images:
+        plt.show()
 
 print("predicted contacts")
 cf.plot_adjs([outs[k]["adj"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_contacts.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-plt.show()
+if show_images:
+    plt.show()
 
 print("predicted distogram")
 cf.plot_dists([outs[k]["dists"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_distogram.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-plt.show()
+if show_images:
+    plt.show()
 
 print("predicted LDDT")
 cf.plot_plddts([outs[k]["plddt"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_LDDT.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-plt.show()
+if show_images:
+    plt.show()
 
 
 def do_save_to_txt(filename, adj, dists, sequence):
