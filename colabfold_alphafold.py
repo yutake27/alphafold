@@ -773,7 +773,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                 # go through each model
                 for num, model_name in enumerate(model_names):
                     name = model_name
-                    key = f"{name}_seed_{seed}"
+                    key = f"{name}_seed_{seed}_rec_{opt['max_recycles']}_ens_{opt['num_ensemble']}"
                     pbar.set_description(f'Running {key}')
 
                     # replace model parameters
@@ -805,7 +805,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
 
                 # go through each random_seed
                 for seed in range(num_samples):
-                    key = f"{name}_seed_{seed}"
+                    key = f"{name}_seed_{seed}_rec_{opt['max_recycles']}_ens_{opt['num_ensemble']}"
                     pbar.set_description(f'Running {key}')
                     processed_feature_dict = model_runner.process_features(feature_dict, random_seed=seed)
 
