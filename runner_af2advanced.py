@@ -14,7 +14,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import tqdm.notebook
+from tqdm import tqdm
 from Bio import SeqIO
 
 import colabfold as cf
@@ -308,7 +308,7 @@ if num_relax > 0:
         # import libraries
         from alphafold.relax import relax, utils
 
-    with tqdm.notebook.tqdm(total=num_relax, bar_format=TQDM_BAR_FORMAT) as pbar:
+    with tqdm(total=num_relax, bar_format=TQDM_BAR_FORMAT) as pbar:
         pbar.set_description(f'AMBER relaxation')
         for n, key in enumerate(model_rank):
             if n < num_relax:

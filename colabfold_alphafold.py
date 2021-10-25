@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
 import colabfold as cf
 import pairmsa
@@ -27,8 +28,6 @@ try:
     IN_COLAB = True
 except:
     IN_COLAB = False
-
-import tqdm.notebook
 
 TQDM_BAR_FORMAT = '{l_bar}{bar}| {n_fmt}/{total_fmt} [elapsed: {elapsed} remaining: {remaining}]'
 
@@ -757,7 +756,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
             f.write(pdb_lines)
 
     disable_tqdm = not verbose
-    with tqdm.notebook.tqdm(total=total, bar_format=TQDM_BAR_FORMAT, disable=disable_tqdm) as pbar:
+    with tqdm(total=total, bar_format=TQDM_BAR_FORMAT, disable=disable_tqdm, position=0) as pbar:
         if opt["use_turbo"]:
             if runner is None:
                 runner = prep_model_runner(opt, params_loc=params_loc)
