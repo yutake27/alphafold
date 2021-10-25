@@ -5,6 +5,7 @@
 # command-line arguments
 
 import argparse
+import datetime
 import json
 import os
 import platform
@@ -81,6 +82,11 @@ parser.add_argument("--num_relax", default="None", choices=["None", "Top1", "Top
                     help="num_relax is 'None' (default), 'Top1', 'Top5' or 'All'. Specify how many of the top ranked structures to relax.")
 parser.add_argument("--show_images", action="store_true", default=False, help="show images")
 args = parser.parse_args()
+
+# Time
+start_datetime = datetime.datetime.now()
+print(start_datetime)
+
 # command-line arguments
 # Check your OS for localcolabfold
 pf = platform.system()
@@ -95,9 +101,6 @@ elif pf == 'Linux':
 # %%
 # python code of AlphaFold2_advanced.ipynb
 tf.config.set_visible_devices([], 'GPU')
-
-
-# --- Python imports ---
 
 
 TMP_DIR = "tmp"
@@ -140,6 +143,11 @@ if args.output_dir != "":
     output_dir = args.output_dir
 
 I = cf_af.prep_inputs(sequence, jobname, homooligomer, output_dir, clean=IN_COLAB)
+
+# MSA generation
+print()
+msa_prep_start_datetime = datetime.datetime.now()
+print(msa_prep_start_datetime, 'MSA preparation')
 
 msa_method = args.msa_method  # @param ["mmseqs2","single_sequence"]
 
@@ -192,8 +200,16 @@ if I["msas"] != mod_I["msas"]:
     if show_images:
         plt.show()
 
+msa_prep_end_datetime = datetime.datetime.now()
+print(msa_prep_end_datetime, 'Finish preparing MSA')
+print('MSA preparation time', msa_prep_end_datetime - msa_prep_start_datetime)
+
 # %%
 # @title run alphafold
+print()
+alphafold_start_datetime = datetime.datetime.now()
+print(alphafold_start_datetime, 'Run alphafold')
+
 # --------set parameters from command-line arguments--------
 num_relax = args.num_relax
 rank_by = args.rank_by
@@ -262,6 +278,11 @@ else:
 ###########################
 outs, model_rank = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples, subsample_msa,
                                        rank_by=rank_by, show_images=show_images)
+
+alphafold_end_datetime = datetime.datetime.now()
+print(alphafold_end_datetime, 'Finish running alphafold')
+print('Alphafold running time', alphafold_end_datetime - alphafold_start_datetime)
+print()
 
 # %%
 # @title Refine structures with Amber-Relax (Optional)
@@ -402,4 +423,8 @@ for n, key in enumerate(model_rank):
             separators=(',', ':'))
         with open(pae_output_path, 'w') as f:
             f.write(pae_data)
-# %%
+
+# Finish
+finish_datetime = datetime.datetime.now()
+print(finish_datetime, 'Finish')
+print('Total time', finish_datetime - start_datetime)
