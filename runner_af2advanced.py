@@ -56,6 +56,7 @@ parser.add_argument("-pq", "--pair_qid", default=20, type=int,
 parser.add_argument("-b", "--rank_by", default="pLDDT", type=str, choices=["pLDDT", "pTMscore"],
                     help="specify metric to use for ranking models (For protein-protein complexes, we recommend pTMscore). "
                     "Default is 'pLDDT'.")
+parser.add_argument("--noranking", action="store_true", help="Ranking output structures. If True, the output file name contains a ranking.")
 parser.add_argument("-t", "--use_turbo", action='store_true',
                     help="introduces a few modifications (compile once, swap params, adjust max_msa) to speedup and reduce memory requirements. "
                     "Disable for default behavior.")
@@ -229,6 +230,7 @@ max_recycles = args.max_recycles
 tol = args.tol
 is_training = True if args.is_training else False
 num_samples = args.num_samples
+ranking = not args.noranking
 # --------set parameters from command-line arguments--------
 
 subsample_msa = True  # @param {type:"boolean"}
@@ -276,8 +278,8 @@ else:
 ###########################
 # run alphafold
 ###########################
-outs, model_rank = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples, subsample_msa,
-                                       rank_by=rank_by, show_images=show_images)
+outs, structure_names = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples, subsample_msa,
+                                       rank_by=rank_by, show_images=show_images, ranking=ranking)
 
 alphafold_end_datetime = datetime.datetime.now()
 print(alphafold_end_datetime, 'Finish running alphafold')
@@ -310,9 +312,9 @@ if num_relax > 0:
 
     with tqdm(total=num_relax, bar_format=TQDM_BAR_FORMAT) as pbar:
         pbar.set_description(f'AMBER relaxation')
-        for n, key in enumerate(model_rank):
+        for n, key in enumerate(structure_names):
             if n < num_relax:
-                prefix = f"rank_{n+1}_{key}"
+                prefix = f"rank_{n+1}_{key}" if ranking else key
                 pred_output_path = os.path.join(I["output_dir"], f'{prefix}_relaxed.pdb')
                 if not os.path.isfile(pred_output_path):
                     amber_relaxer = relax.AmberRelaxation(
@@ -332,22 +334,23 @@ color = "lDDT"  # @param ["chain", "lDDT", "rainbow"]
 show_sidechains = False  # @param {type:"boolean"}
 show_mainchains = False  # @param {type:"boolean"}
 
-key = model_rank[rank_num-1]
-prefix = f"rank_{rank_num}_{key}"
-pred_output_path = os.path.join(I["output_dir"], f'{prefix}_relaxed.pdb')
-if not os.path.isfile(pred_output_path):
-    pred_output_path = os.path.join(I["output_dir"], f'{prefix}_unrelaxed.pdb')
+if ranking:
+    key = structure_names[rank_num-1]
+    prefix = f"rank_{rank_num}_{key}"
+    pred_output_path = os.path.join(I["output_dir"], f'{prefix}_relaxed.pdb')
+    if not os.path.isfile(pred_output_path):
+        pred_output_path = os.path.join(I["output_dir"], f'{prefix}_unrelaxed.pdb')
 
-cf.show_pdb(pred_output_path, show_sidechains, show_mainchains, color, Ls=Ls_plot).show()
-if color == "lDDT":
+    cf.show_pdb(pred_output_path, show_sidechains, show_mainchains, color, Ls=Ls_plot).show()
+    if color == "lDDT":
+        if show_images:
+            cf.plot_plddt_legend().show()
+    if use_ptm:
+        plt_confidence =  cf.plot_confidence(outs[key]["plddt"], outs[key]["pae"], Ls=Ls_plot)
+    else:
+        plt_confidence = cf.plot_confidence(outs[key]["plddt"], Ls=Ls_plot)
     if show_images:
-        cf.plot_plddt_legend().show()
-if use_ptm:
-    plt_confidence =  cf.plot_confidence(outs[key]["plddt"], outs[key]["pae"], Ls=Ls_plot)
-else:
-    plt_confidence = cf.plot_confidence(outs[key]["plddt"], Ls=Ls_plot)
-if show_images:
-    plt_confidence.show()
+        plt_confidence.show()
 # %%
 # @title Extra outputs
 dpi = 300  # @param {type:"integer"}
@@ -356,26 +359,26 @@ save_pae_json = True  # @param {type:"boolean"}
 
 if use_ptm:
     print("predicted alignment error")
-    cf.plot_paes([outs[k]["pae"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
+    cf.plot_paes([outs[k]["pae"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
     plt.savefig(os.path.join(I["output_dir"], f'predicted_alignment_error.png'),
                 bbox_inches='tight', dpi=np.maximum(200, dpi))
     if show_images:
         plt.show()
 
 print("predicted contacts")
-cf.plot_adjs([outs[k]["adj"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
+cf.plot_adjs([outs[k]["adj"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_contacts.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
 if show_images:
     plt.show()
 
 print("predicted distogram")
-cf.plot_dists([outs[k]["dists"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
+cf.plot_dists([outs[k]["dists"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_distogram.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
 if show_images:
     plt.show()
 
 print("predicted LDDT")
-cf.plot_plddts([outs[k]["plddt"] for k in model_rank], Ls=Ls_plot, dpi=dpi)
+cf.plot_plddts([outs[k]["plddt"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
 plt.savefig(os.path.join(I["output_dir"], f'predicted_LDDT.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
 if show_images:
     plt.show()
@@ -395,9 +398,12 @@ def do_save_to_txt(filename, adj, dists, sequence):
                     out.write(f"{line}\n")
 
 
-for n, key in enumerate(model_rank):
+for n, key in enumerate(structure_names):
     if save_to_txt:
-        txt_filename = os.path.join(I["output_dir"], f'rank_{n+1}_{key}.raw.txt')
+        if ranking:
+            txt_filename = os.path.join(I["output_dir"], f'rank_{n+1}_{key}.raw.txt')
+        else:
+            txt_filename = os.path.join(I["output_dir"], f'{key}.raw.txt')
         do_save_to_txt(txt_filename,
                        outs[key]["adj"],
                        outs[key]["dists"],

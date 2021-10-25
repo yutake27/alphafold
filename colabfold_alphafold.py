@@ -670,7 +670,8 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
 
 
 def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_samples=1, subsample_msa=True,
-                  pad_feats=False, rank_by="pLDDT", show_images=True, params_loc='./alphafold/data', verbose=True):
+                  pad_feats=False, rank_by="pLDDT", show_images=True, ranking=True,
+                  params_loc='./alphafold/data', verbose=True):
 
     def do_subsample_msa(F, random_seed=0):
         '''subsample msa to avoid running out of memory'''
@@ -750,7 +751,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         if show_images:
             fig = cf.plot_protein(o['unrelaxed_protein'], Ls=feature_dict["Ls"], dpi=100)
             plt.show()
-        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'unranked_{key}_unrelaxed.pdb')
+        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}_unrelaxed.pdb')
         pdb_lines = protein.to_pdb(o['unrelaxed_protein'])
         with open(tmp_pdb_path, 'w') as f:
             f.write(pdb_lines)
@@ -822,7 +823,11 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                 # cleanup
                 del model_runner
 
-    # Find the best model according to the mean pLDDT.
+    # If not ranking, return
+    if not ranking:
+        return outs, list(outs.keys())
+
+    # If ranking, Find the best model according to the mean pLDDT.
     model_rank = list(outs.keys())
     model_rank = [model_rank[i] for i in np.argsort([outs[x][rank_by] for x in model_rank])[::-1]]
 
