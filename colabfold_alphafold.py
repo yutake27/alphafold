@@ -714,13 +714,15 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         b_factors = prediction_result['plddt'][:, None] * prediction_result['structure_module']['final_atom_mask']
         p = protein.from_prediction(processed_feature_dict, prediction_result, b_factors=b_factors)
         plddt = prediction_result['plddt'][:num_res]
-        out = {"unrelaxed_protein": class_to_np(p),
-               "plddt": to_np(plddt),
-               "pLDDT": to_np(plddt.mean()),
-               "dists": to_np(dist_mtx),
-               "adj": to_np(contact_mtx),
-               "recycles": to_np(r),
-               "tol": to_np(t)}
+        out = {
+            "unrelaxed_protein": p,
+            "plddt": to_np(plddt),
+            "pLDDT": to_np(plddt.mean()),
+            "dists": to_np(dist_mtx),
+            "adj": to_np(contact_mtx),
+            "recycles": to_np(r),
+            "tol": to_np(t)
+        }
         if "ptm" in prediction_result:
             out["pae"] = to_np(prediction_result['predicted_aligned_error'][:num_res, :][:, :num_res])
             out["pTMscore"] = to_np(prediction_result['ptm'])
@@ -755,6 +757,9 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         pdb_lines = protein.to_pdb(o['unrelaxed_protein'])
         with open(tmp_pdb_path, 'w') as f:
             f.write(pdb_lines)
+        # save output as pickle
+        with open(os.path.join(feature_dict["output_dir"], f"{key}.pickle"), "wb") as f:
+            pickle.dump(o, f)
 
     disable_tqdm = not verbose
     with tqdm(total=total, bar_format=TQDM_BAR_FORMAT, disable=disable_tqdm, position=0) as pbar:
