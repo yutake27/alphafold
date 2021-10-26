@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Code for constructing the model."""
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Tuple, Union, List
 
 from absl import logging
 from alphafold.common import confidence
@@ -118,7 +118,10 @@ class RunModel:
     logging.info('Output shape was %s', shape)
     return shape
 
-  def predict(self, feat: features.FeatureDict, random_seed=0) -> Mapping[str, Any]:
+  def predict(self,
+              feat: features.FeatureDict,
+              ret_all_cycle: bool = False,
+              random_seed=0) -> List[Tuple[Mapping[str, Any], int, float]]:
     """Makes a prediction by inferencing the model on the provided features.
 
     Args:
@@ -126,17 +129,30 @@ class RunModel:
         RunModel.process_features.
 
     Returns:
-      A dictionary of model outputs.
+      List[(A dictionary of model outputs, num recycles, tolerance)]
     """
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result, recycles = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    ret_list = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
-    jax.tree_map(lambda x: x.block_until_ready(), result)
-    result.update(get_confidence_metrics(result))
-    logging.info('Output shape was %s',
-                 tree.map_structure(lambda x: x.shape, result))
-    return result, recycles
+    if not ret_all_cycle:
+      ret_list = ret_list[-1:] # return last result
+
+    def iter_ret(ret):
+      result = ret[0]
+      jax.tree_map(lambda x: x.block_until_ready(), result)
+      result.update(get_confidence_metrics(result))
+      logging.info('Output shape was %s',
+                  tree.map_structure(lambda x: x.shape, result))
+      return ret
+    ret_list = [iter_ret(ret) for ret in ret_list]
+    # for ret in ret_list:
+    #   result = ret[0]
+    #   jax.tree_map(lambda x: x.block_until_ready(), result)
+    #   result.update(get_confidence_metrics(result))
+    #   logging.info('Output shape was %s',
+    #               tree.map_structure(lambda x: x.shape, result))
+    return ret_list

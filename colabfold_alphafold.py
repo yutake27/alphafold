@@ -670,7 +670,7 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
 
 
 def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_samples=1, subsample_msa=True,
-                  pad_feats=False, rank_by="pLDDT", show_images=True, ranking=True,
+                  pad_feats=False, rank_by="pLDDT", show_images=True, ranking=True, output_all_cycle=False,
                   params_loc='./alphafold/data', verbose=True):
 
     def do_subsample_msa(F, random_seed=0):
@@ -787,14 +787,22 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                         runner["model"].params[k] = params[k]
 
                     # predict
-                    prediction_result, (r, t) = runner["model"].predict(processed_feature_dict, random_seed=seed)
                     outs[key] = parse_results(prediction_result, processed_feature_dict, r=r, t=t, num_res=num_res)
 
-                    # cleanup
-                    del prediction_result, params, r, t
+                    prediction_result_list = runner["model"].predict(processed_feature_dict,
+                                                                     ret_all_cycle=output_all_cycle,
+                                                                     random_seed=seed)
+                    for prediction_result, recycles, tol in prediction_result_list:
+                        key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
+                        outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
 
-                    # report
-                    do_report(key)
+                        # cleanup
+                        del prediction_result, recycles, tol
+
+                        # report
+                        do_report(key)
+                    # cleanup
+                    del processed_feature_dict
                     pbar.update(n=1)
 
                 # cleanup
@@ -815,14 +823,20 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                     processed_feature_dict = model_runner.process_features(feature_dict, random_seed=seed)
 
                     # predict
-                    prediction_result, (r, t) = model_runner.predict(processed_feature_dict, random_seed=seed)
-                    outs[key] = parse_results(prediction_result, processed_feature_dict, r=r, t=t, num_res=num_res)
+                    prediction_result_list = model_runner.predict(processed_feature_dict,
+                                                                  ret_all_cycle=output_all_cycle,
+                                                                  random_seed=seed)
+                    for prediction_result, recycles, tol in prediction_result_list:
+                        key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
+                        outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
 
+                        # cleanup
+                        del prediction_result, recycles, tol
+
+                        # report
+                        do_report(key)
                     # cleanup
-                    del processed_feature_dict, prediction_result, r, t
-
-                    # report
-                    do_report(key)
+                    del processed_feature_dict
                     pbar.update(n=1)
 
                 # cleanup

@@ -297,6 +297,12 @@ class AlphaFold(hk.Module):
         representations.
 
     Returns:
+      List of Tuple[ret, recycle, tol].
+
+      Recycle is a number of recycle.
+      Tol is a CA-RMSD between recycles
+
+      For ret,
       When compute_loss is True:
         a tuple of loss and output of AlphaFoldIteration.
       When compute_loss is False:
@@ -376,26 +382,41 @@ class AlphaFold(hk.Module):
         tol_ = jnp.sqrt(jnp.square(pw_dist(ca) - pw_dist(ca_)).mean())
         return n+1, tol_, prev_
 
+      def body_scan(carry, x):
+        carry = body(carry)
+        return carry, carry
+
       if hk.running_init():
         # When initializing the Haiku module, run one iteration of the
         # while_loop to initialize the Haiku modules used in `body`.
         recycles, tol, prev = body((0, jnp.inf, prev))
+        result_list = [(recycles, tol, prev)]
       else:
-        recycles, tol, prev = hk.while_loop(
-          lambda x: ((x[0] < num_iter) & (x[1] > self.config.recycle_tol)),
-          body,(0, jnp.inf, prev))
+        _, result_tuple = hk.scan(body_scan, (0, jnp.inf, prev), None, length=num_iter)
+        result_list = []
+        for i in range(num_iter):
+          recycles = result_tuple[0][i]
+          tol = result_tuple[1][i]
+          prev = {key: val[i] for key, val in result_tuple[2].items()}
+          result_list.append((recycles, tol, prev))
     else:
       prev = {}
       num_iter = 0
       (recycles,tol) = 0, jnp.inf
+      result_list = [(recycles, tol, prev)]
 
-    ret = do_call(prev=prev, recycle_idx=num_iter)
-    if compute_loss:
-      ret = ret[0], [ret[1]]
+    def iter_result(result):
+      recycles, tol, prev = result
+      ret = do_call(prev=prev, recycle_idx=recycles)
+      if compute_loss:
+        ret = ret[0], [ret[1]]
+      return (ret, recycles, tol)
+    ret_list = [iter_result(result) for result in result_list]
 
     if not return_representations:
-      del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
-    return ret, (recycles,tol)
+      for ret, _, _ in ret_list:
+        del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
+    return ret_list
 
 
 class TemplatePairStack(hk.Module):
