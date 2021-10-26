@@ -787,8 +787,6 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                         runner["model"].params[k] = params[k]
 
                     # predict
-                    outs[key] = parse_results(prediction_result, processed_feature_dict, r=r, t=t, num_res=num_res)
-
                     prediction_result_list = runner["model"].predict(processed_feature_dict,
                                                                      ret_all_cycle=output_all_cycle,
                                                                      random_seed=seed)
