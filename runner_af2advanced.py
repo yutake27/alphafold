@@ -82,6 +82,7 @@ parser.add_argument("--is_training", action='store_true',
 parser.add_argument("--num_samples", default=1, type=int, help="number of random_seeds to try. Default is 1.")
 parser.add_argument("--num_relax", default="None", choices=["None", "Top1", "Top5", "All"],
                     help="num_relax is 'None' (default), 'Top1', 'Top5' or 'All'. Specify how many of the top ranked structures to relax.")
+parser.add_argument("--save_images", action='store_true', help="save images such as structures and plot")
 parser.add_argument("--show_images", action="store_true", default=False, help="show images")
 args = parser.parse_args()
 
@@ -114,7 +115,8 @@ try:
 except:
     IN_COLAB = False
 
-# Set show images
+# Set flag for images
+save_images = True if args.save_images else False
 show_images = True if args.show_images else False  # @param {type:"boolean"}
 
 # %%
@@ -359,31 +361,32 @@ dpi = 300  # @param {type:"integer"}
 save_to_txt = False  # @param {type:"boolean"}
 save_pae_json = False  # @param {type:"boolean"}
 
-if use_ptm:
-    print("predicted alignment error")
-    cf.plot_paes([outs[k]["pae"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
-    plt.savefig(os.path.join(I["output_dir"], f'predicted_alignment_error.png'),
-                bbox_inches='tight', dpi=np.maximum(200, dpi))
+if save_images:
+    if use_ptm:
+        print("predicted alignment error")
+        cf.plot_paes([outs[k]["pae"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
+        plt.savefig(os.path.join(I["output_dir"], f'predicted_alignment_error.png'),
+                    bbox_inches='tight', dpi=np.maximum(200, dpi))
+        if show_images:
+            plt.show()
+
+    print("predicted contacts")
+    cf.plot_adjs([outs[k]["adj"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
+    plt.savefig(os.path.join(I["output_dir"], f'predicted_contacts.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
     if show_images:
         plt.show()
 
-print("predicted contacts")
-cf.plot_adjs([outs[k]["adj"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
-plt.savefig(os.path.join(I["output_dir"], f'predicted_contacts.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-if show_images:
-    plt.show()
+    print("predicted distogram")
+    cf.plot_dists([outs[k]["dists"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
+    plt.savefig(os.path.join(I["output_dir"], f'predicted_distogram.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
+    if show_images:
+        plt.show()
 
-print("predicted distogram")
-cf.plot_dists([outs[k]["dists"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
-plt.savefig(os.path.join(I["output_dir"], f'predicted_distogram.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-if show_images:
-    plt.show()
-
-print("predicted LDDT")
-cf.plot_plddts([outs[k]["plddt"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
-plt.savefig(os.path.join(I["output_dir"], f'predicted_LDDT.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
-if show_images:
-    plt.show()
+    print("predicted LDDT")
+    cf.plot_plddts([outs[k]["plddt"] for k in structure_names], Ls=Ls_plot, dpi=dpi)
+    plt.savefig(os.path.join(I["output_dir"], f'predicted_LDDT.png'), bbox_inches='tight', dpi=np.maximum(200, dpi))
+    if show_images:
+        plt.show()
 
 
 def do_save_to_txt(filename, adj, dists, sequence):
