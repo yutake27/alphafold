@@ -121,7 +121,7 @@ class RunModel:
   def predict(self,
               feat: features.FeatureDict,
               ret_all_cycle: bool = False,
-              random_seed=0) -> List[Tuple[Mapping[str, Any], int, float]]:
+              random_seed=0) -> Union[Tuple[Mapping[str, Any], int, float], List[Tuple[Mapping[str, Any], int, float]]]:
     """Makes a prediction by inferencing the model on the provided features.
 
     Args:
@@ -138,21 +138,19 @@ class RunModel:
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
-    if not ret_all_cycle:
-      ret_list = ret_list[-1:] # return last result
 
-    def iter_ret(ret):
+    def iter_ret(ret: Tuple[Mapping[str, Any], int, float]) -> Tuple[Mapping[str, Any], int, float]:
       result = ret[0]
       jax.tree_map(lambda x: x.block_until_ready(), result)
       result.update(get_confidence_metrics(result))
       logging.info('Output shape was %s',
                   tree.map_structure(lambda x: x.shape, result))
       return ret
-    ret_list = [iter_ret(ret) for ret in ret_list]
-    # for ret in ret_list:
-    #   result = ret[0]
-    #   jax.tree_map(lambda x: x.block_until_ready(), result)
-    #   result.update(get_confidence_metrics(result))
-    #   logging.info('Output shape was %s',
-    #               tree.map_structure(lambda x: x.shape, result))
-    return ret_list
+
+    if not ret_all_cycle:
+      ret = ret_list[-1]  # return last result
+      ret = iter_ret(ret)
+      return ret
+    else:
+      ret_list = [iter_ret(ret) for ret in ret_list]
+      return ret_list

@@ -761,6 +761,34 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         with open(os.path.join(feature_dict["output_dir"], f"{key}.pickle"), "wb") as f:
             pickle.dump(o, f)
 
+    def predict(model: model.RunModel, processed_feature_dict, ret_all_cycle=False, random_seed=0) -> None:
+        '''run prediction'''
+        if not ret_all_cycle:
+            prediction_result, recycles, tol = model.predict(processed_feature_dict,
+                                                             ret_all_cycle=ret_all_cycle,
+                                                             random_seed=random_seed)
+            key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
+            outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
+            # cleanup
+            del processed_feature_dict, prediction_result, recycles, tol
+
+            # report
+            do_report(key)
+
+        else:
+            prediction_result_list = model.predict(processed_feature_dict,
+                                                   ret_all_cycle=ret_all_cycle,
+                                                   random_seed=random_seed)
+            for prediction_result, recycles, tol in prediction_result_list:
+                key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
+                outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
+                # cleanup
+                del prediction_result, recycles, tol
+                # report
+                do_report(key)
+            # cleanup
+            del processed_feature_dict
+
     disable_tqdm = not verbose
     with tqdm(total=total, bar_format=TQDM_BAR_FORMAT, disable=disable_tqdm, position=0) as pbar:
         if opt["use_turbo"]:
@@ -787,20 +815,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                         runner["model"].params[k] = params[k]
 
                     # predict
-                    prediction_result_list = runner["model"].predict(processed_feature_dict,
-                                                                     ret_all_cycle=output_all_cycle,
-                                                                     random_seed=seed)
-                    for prediction_result, recycles, tol in prediction_result_list:
-                        key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
-                        outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
-
-                        # cleanup
-                        del prediction_result, recycles, tol
-
-                        # report
-                        do_report(key)
-                    # cleanup
-                    del processed_feature_dict
+                    predict(runner["model"], processed_feature_dict, ret_all_cycle=output_all_cycle, random_seed=seed)
                     pbar.update(n=1)
 
                 # cleanup
@@ -821,20 +836,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                     processed_feature_dict = model_runner.process_features(feature_dict, random_seed=seed)
 
                     # predict
-                    prediction_result_list = model_runner.predict(processed_feature_dict,
-                                                                  ret_all_cycle=output_all_cycle,
-                                                                  random_seed=seed)
-                    for prediction_result, recycles, tol in prediction_result_list:
-                        key = f"{name}_seed_{seed}_rec_{recycles}_ens_{opt['num_ensemble']}"
-                        outs[key] = parse_results(prediction_result, processed_feature_dict, r=recycles, t=tol, num_res=num_res)
-
-                        # cleanup
-                        del prediction_result, recycles, tol
-
-                        # report
-                        do_report(key)
-                    # cleanup
-                    del processed_feature_dict
+                    predict(model_runner, processed_feature_dict, ret_all_cycle=output_all_cycle, random_seed=seed)
                     pbar.update(n=1)
 
                 # cleanup
