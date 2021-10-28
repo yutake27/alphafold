@@ -8,14 +8,17 @@ import argparse
 import datetime
 import json
 import os
+import pickle
 import platform
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-from tqdm import tqdm
 from Bio import SeqIO
+from tqdm import tqdm
 
 import colabfold as cf
 import colabfold_alphafold as cf_af
@@ -145,6 +148,8 @@ TQDM_BAR_FORMAT = '{l_bar}{bar}| {n_fmt}/{total_fmt} [elapsed: {elapsed} remaini
 # --set the output directory from command-line arguments
 if args.output_dir != "":
     output_dir = args.output_dir
+else:
+    output_dir = Path(args.input).stem
 
 I = cf_af.prep_inputs(sequence, jobname, homooligomer, output_dir, clean=IN_COLAB)
 
@@ -360,6 +365,7 @@ if ranking:
 dpi = 300  # @param {type:"integer"}
 save_to_txt = False  # @param {type:"boolean"}
 save_pae_json = False  # @param {type:"boolean"}
+save_score = True
 
 if save_images:
     if use_ptm:
@@ -401,6 +407,32 @@ def do_save_to_txt(filename, adj, dists, sequence):
                     line = f"{i}\t{j}\t{sequence[i]}\t{sequence[j]}\t{adj[i][j]:.3f}"
                     line += f"\t>{dists[i][j]:.2f}" if dists[i][j] == 21.6875 else f"\t{dists[i][j]:.2f}"
                     out.write(f"{line}\n")
+
+
+def read_plddt_and_pTM_from_pkl(pkl_path):
+    with open(pkl_path, "rb") as f:
+        o = pickle.load(f)
+        plddt = o["pLDDT"] / 100
+        ptm = o["pTMscore"] if "pTMscore" in o else None
+    return plddt, ptm
+
+
+# Save plddt and pTM to csv
+def save_score_to_csv(filename):
+    prefix = 'rank_' if ranking else 'model_'
+    score_list = []
+    for out_pkl in Path(output_dir).glob(f"{prefix}*.pickle"):
+        model = out_pkl.stem
+        plddt, ptm = read_plddt_and_pTM_from_pkl(out_pkl)
+        score_list.append((model, plddt, ptm))
+    df = pd.DataFrame(score_list, columns=["Model", "pLDDT", "pTMscore"])
+    target_name = Path(args.input).stem
+    df["Target"] = target_name
+    df.to_csv(filename)
+
+
+if save_score:
+    save_score_to_csv(os.path.join(output_dir, "scores.csv"))
 
 
 for n, key in enumerate(structure_names):
