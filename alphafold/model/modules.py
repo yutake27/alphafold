@@ -377,41 +377,51 @@ class AlphaFold(hk.Module):
 
       def body(x):
         n, tol, prev = x
-        prev_ = get_prev(do_call(prev, recycle_idx=n, compute_loss=False))
+        ret = do_call(prev, recycle_idx=n, compute_loss=False)
+        # prev_ = get_prev(do_call(prev, recycle_idx=n, compute_loss=False))
+        prev_ = get_prev(ret)
         ca,ca_ = prev["prev_pos"][:,1,:], prev_["prev_pos"][:,1,:]
         tol_ = jnp.sqrt(jnp.square(pw_dist(ca) - pw_dist(ca_)).mean())
-        return n+1, tol_, prev_
+        return n+1, tol_, prev_, ret
 
-      def body_scan(carry, x):
-        carry = body(carry)
-        return carry, carry
+      def body_scan(carry, x): # For jax.lax.scan
+        # First return values are used iteratively in scan and second return values are stacked.
+        n, tol, prev, ret = body(carry)
+        return (n, tol, prev), (n, tol, prev, ret)
+
+      def unstack(result_tuple, length): # Convert a stacked tuple to a list
+        result_list = []
+        for i in range(length):
+          recycles = result_tuple[0][i]
+          tol = result_tuple[1][i]
+          prev = {key: val[i] for key, val in result_tuple[2].items()}
+          ret = {key1: {key2: val2[i] for key2, val2 in val1.items()} for key1, val1 in result_tuple[3].items()}
+          result_list.append((recycles, tol, prev, ret))
+        return result_list
 
       if hk.running_init():
         # When initializing the Haiku module, run one iteration of the
         # while_loop to initialize the Haiku modules used in `body`.
-        recycles, tol, prev = body((0, jnp.inf, prev))
-        result_list = [(recycles, tol, prev)]
+        recycles, tol, prev, _ = body((0, jnp.inf, prev))
+        result_list = [(recycles, tol, prev, None)]
       else:
-        _, result_tuple = hk.scan(body_scan, (0, jnp.inf, prev), None, length=num_iter)
-        result_list = []
-        for i in range(num_iter):
-          recycles = result_tuple[0][i]
-          tol = result_tuple[1][i]
-          prev = {key: val[i] for key, val in result_tuple[2].items()}
-          result_list.append((recycles, tol, prev))
+        (recycles, tol, prev), result_tuple = hk.scan(body_scan, (0, jnp.inf, prev), None, length=num_iter)
+        result_list = unstack(result_tuple, num_iter)
     else:
       prev = {}
       num_iter = 0
       (recycles,tol) = 0, jnp.inf
-      result_list = [(recycles, tol, prev)]
+      result_list = [(recycles, tol, prev, None)]
 
-    def iter_result(result):
-      recycles, tol, prev = result
-      ret = do_call(prev=prev, recycle_idx=recycles)
-      if compute_loss:
+    ret_list = []
+    for i in range(num_iter - 1): # Except the last cycle
+      r, t, _, _ = result_list[i]
+      ret = result_list[i+1][3]
+      ret_list.append((ret, r, t))
+    ret = do_call(prev=prev, recycle_idx=num_iter) # Last cycle
+    if compute_loss:
         ret = ret[0], [ret[1]]
-      return (ret, recycles, tol)
-    ret_list = [iter_result(result) for result in result_list]
+    ret_list.append((ret, recycles, tol))
 
     if not return_representations:
       for ret, _, _ in ret_list:
