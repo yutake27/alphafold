@@ -808,6 +808,10 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                     name = model_name
                     key = f"{name}_seed_{seed}_rec_{opt['max_recycles']}_ens_{opt['num_ensemble']}"
                     pbar.set_description(f'Running {key}')
+                    output_pickle_path = os.path.join(feature_dict["output_dir"], f"{key}.pickle")
+                    if os.path.exists(output_pickle_path):  # skip if already done
+                        pbar.update(1)
+                        continue
 
                     # replace model parameters
                     params = data.get_model_haiku_params(name, params_loc)
@@ -833,6 +837,11 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                 for seed in range(num_samples):
                     key = f"{name}_seed_{seed}_rec_{opt['max_recycles']}_ens_{opt['num_ensemble']}"
                     pbar.set_description(f'Running {key}')
+                    output_pickle_path = os.path.join(feature_dict["output_dir"], f"{key}.pickle")
+                    if os.path.exists(output_pickle_path):  # skip if already done
+                        pbar.update(1)
+                        continue
+
                     processed_feature_dict = model_runner.process_features(feature_dict, random_seed=seed)
 
                     # predict
