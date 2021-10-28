@@ -356,8 +356,8 @@ if ranking:
 # %%
 # @title Extra outputs
 dpi = 300  # @param {type:"integer"}
-save_to_txt = True  # @param {type:"boolean"}
-save_pae_json = True  # @param {type:"boolean"}
+save_to_txt = False  # @param {type:"boolean"}
+save_pae_json = False  # @param {type:"boolean"}
 
 if use_ptm:
     print("predicted alignment error")
