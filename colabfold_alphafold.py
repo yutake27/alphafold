@@ -753,7 +753,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         if show_images:
             fig = cf.plot_protein(o['unrelaxed_protein'], Ls=feature_dict["Ls"], dpi=100)
             plt.show()
-        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}_unrelaxed.pdb')
+        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}.pdb')
         pdb_lines = protein.to_pdb(o['unrelaxed_protein'])
         with open(tmp_pdb_path, 'w') as f:
             f.write(pdb_lines)
@@ -862,7 +862,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
     # Write out the prediction
     for n, key in enumerate(model_rank):
         prefix = f"rank_{n+1}_{key}"
-        pred_output_path = os.path.join(feature_dict["output_dir"], f'{prefix}_unrelaxed.pdb')
+        pred_output_path = os.path.join(feature_dict["output_dir"], f'{prefix}.pdb')
         fig = cf.plot_protein(outs[key]["unrelaxed_protein"], Ls=feature_dict["Ls"], dpi=200)
         plt.savefig(os.path.join(feature_dict["output_dir"], f'{prefix}.png'), bbox_inches='tight')
         plt.close(fig)
@@ -870,7 +870,7 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
         with open(pred_output_path, 'w') as f:
             f.write(pdb_lines)
 
-        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'unranked_{key}_unrelaxed.pdb')
+        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}.pdb')
         if os.path.isfile(tmp_pdb_path):
             os.remove(tmp_pdb_path)
 

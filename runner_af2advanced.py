@@ -348,7 +348,7 @@ if ranking:
     prefix = f"rank_{rank_num}_{key}"
     pred_output_path = os.path.join(I["output_dir"], f'{prefix}_relaxed.pdb')
     if not os.path.isfile(pred_output_path):
-        pred_output_path = os.path.join(I["output_dir"], f'{prefix}_unrelaxed.pdb')
+        pred_output_path = os.path.join(I["output_dir"], f'{prefix}.pdb')
 
     cf.show_pdb(pred_output_path, show_sidechains, show_mainchains, color, Ls=Ls_plot).show()
     if color == "lDDT":
