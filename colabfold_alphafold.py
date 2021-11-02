@@ -699,13 +699,6 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
 
         def to_np(a): return np.asarray(a)
 
-        def class_to_np(c):
-            class dict2obj():
-                def __init__(self, d):
-                    for k, v in d.items():
-                        setattr(self, k, to_np(v))
-            return dict2obj(c.__dict__)
-
         dist_bins = jax.numpy.append(0, prediction_result["distogram"]["bin_edges"])
         dist_logits = prediction_result["distogram"]["logits"][:num_res, :][:, :num_res]
         dist_mtx = dist_bins[dist_logits.argmax(-1)]
