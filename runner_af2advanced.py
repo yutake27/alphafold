@@ -74,7 +74,7 @@ parser.add_argument("--num_pTM_models", default=5, type=int,
                     help="specify how many pTM model params to try. (Default is 5)")
 parser.add_argument("--model", type=str, choices=["CASP14", "pTM", "both"], default="CASP14",
                     help="Model to use. CASP14 is a normal model. Both uses both models. Number of models to be used is read from num_CASP14_models and num_pTM_models respectively. (Default is CASP14)")
-parser.add_argument("-e", "--num_ensembles", nargs='*', default='1', choices=['1', '8', ['1', '8']],
+parser.add_argument("-e", "--num_ensembles", nargs='*', default=['1'], choices=['1', '8'],
                     help="the trunk of the network is run multiple times with different random choices for the MSA cluster centers. "
                     "(1=default, 8=casp14 setting)")
 parser.add_argument("-r", "--max_recycles", default=3, type=int,
