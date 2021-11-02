@@ -81,7 +81,7 @@ parser.add_argument("-r", "--max_recycles", default=3, type=int,
                     help="controls the maximum number of times the structure is fed back into the neural network for refinement. (default is 3)")
 parser.add_argument("--output_all_cycle", action="store_true", help="Output the structures of all cycle. If this option is set and max_recycles is 3, the structures of all 1,2,3 cycles will be output.")
 parser.add_argument("--tol", default=0, type=float,
-                    help="tolerance for deciding when to stop (CA-RMSD between recycles)")
+                    help="tolerance for deciding when to stop (CA-RMS between recycles)")
 parser.add_argument("--is_training", action='store_true',
                     help="enables the stochastic part of the model (dropout), when coupled with num_samples can be used to 'sample' a diverse set of structures. False (NOT specifying this option) is recommended at first.")
 parser.add_argument("--num_samples", default=1, type=int, help="number of random_seeds to try. Default is 1.")
