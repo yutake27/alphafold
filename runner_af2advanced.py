@@ -72,7 +72,7 @@ parser.add_argument("--num_pTM_models", default=5, type=int,
                     help="specify how many pTM model params to try. (Default is 5)")
 parser.add_argument("--model", type=str, choices=["CASP14", "pTM", "both"], default="CASP14",
                     help="Model to use. CASP14 is a normal model. Both uses both models. Number of models to be used is read from num_CASP14_models and num_pTM_models respectively. (Default is CASP14)")
-parser.add_argument("-e", "--num_ensemble", default=1, type=int, choices=[1, 8],
+parser.add_argument("-e", "--num_ensembles", nargs='*', default='1', choices=['1', '8', ['1', '8']],
                     help="the trunk of the network is run multiple times with different random choices for the MSA cluster centers. "
                     "(1=default, 8=casp14 setting)")
 parser.add_argument("-r", "--max_recycles", default=3, type=int,
@@ -233,7 +233,6 @@ max_msa_clusters, max_extra_msa = [int(x) for x in max_msa.split(":")]
 model = args.model
 num_CASP14_models = args.num_CASP14_models
 num_pTM_models = args.num_pTM_models
-num_ensemble = args.num_ensemble
 max_recycles = args.max_recycles
 tol = args.tol
 is_training = True if args.is_training else False
@@ -269,26 +268,26 @@ opt = {"N": len(feature_dict["msa"]),
        "use_turbo": use_turbo,
        "max_recycles": max_recycles,
        "tol": tol,
-       "num_ensemble": num_ensemble,
        "max_msa_clusters": max_msa_clusters,
        "max_extra_msa": max_extra_msa,
        "is_training": is_training}
 
-if use_turbo:
-    if "runner" in dir():
-        # only recompile if options changed
-        runner = cf_af.prep_model_runner(opt, old_runner=runner)
-    else:
-        runner = cf_af.prep_model_runner(opt)
-else:
-    runner = None
+
+runner = None
 
 ###########################
 # run alphafold
 ###########################
-outs, structure_names = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples,
-                                            subsample_msa, rank_by=rank_by, show_images=show_images,
-                                            ranking=ranking, output_all_cycle=args.output_all_cycle)
+outs, structure_names = {}, []
+num_ensembles = list(map(int, args.num_ensembles))
+for num_ensemble in num_ensembles:
+    print('Ensemble', num_ensemble)
+    opt['num_ensemble'] = num_ensemble
+    outs_, structure_names_ = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples,
+                                                  subsample_msa, rank_by=rank_by, show_images=show_images,
+                                                  ranking=ranking, output_all_cycle=args.output_all_cycle)
+    outs.update(outs_)
+    structure_names.extend(structure_names_)
 
 alphafold_end_datetime = datetime.datetime.now()
 print(alphafold_end_datetime, 'Finish running alphafold')
