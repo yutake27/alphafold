@@ -457,7 +457,7 @@ def save_score_to_csv(filename):
                                            "ModelName", "Seed", "Recycle", "Ensemble"])
     target_name = Path(args.input).stem
     df["Target"] = target_name
-    df = df.sort_values('Model').reset_index()
+    df = df.sort_values('Model').reset_index(drop=True)
     df.to_csv(filename)
 
 
