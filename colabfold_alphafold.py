@@ -670,7 +670,7 @@ def prep_model_runner(opt=None, model_name="model_5", old_runner=None, params_lo
 
 
 def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_samples=1, subsample_msa=True,
-                  pad_feats=False, rank_by="pLDDT", show_images=True, ranking=True, output_all_cycle=False,
+                  pad_feats=False, show_images=True, output_all_cycle=False,
                   params_loc='./alphafold/data', verbose=True):
 
     def do_subsample_msa(F, random_seed=0):
@@ -851,33 +851,4 @@ def run_alphafold(feature_dict, opt=None, runner=None, model_names=None, num_sam
                 # cleanup
                 del model_runner
 
-    # If not ranking, return
-    if not ranking:
-        return outs, list(outs.keys())
-
-    # If ranking, Find the best model according to the mean pLDDT.
-    model_rank = list(outs.keys())
-    model_rank = [model_rank[i] for i in np.argsort([outs[x][rank_by] for x in model_rank])[::-1]]
-
-    # Write out the prediction
-    for n, key in enumerate(model_rank):
-        prefix = f"rank_{n+1}_{key}"
-        pred_output_path = os.path.join(feature_dict["output_dir"], f'{prefix}.pdb')
-        fig = cf.plot_protein(outs[key]["unrelaxed_protein"], Ls=feature_dict["Ls"], dpi=200)
-        plt.savefig(os.path.join(feature_dict["output_dir"], f'{prefix}.png'), bbox_inches='tight')
-        plt.close(fig)
-        pdb_lines = protein.to_pdb(outs[key]["unrelaxed_protein"])
-        with open(pred_output_path, 'w') as f:
-            f.write(pdb_lines)
-
-        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}.pdb')
-        if os.path.isfile(tmp_pdb_path):
-            os.remove(tmp_pdb_path)
-
-    ############################################################
-    if verbose:
-        print(f"model rank based on {rank_by}")
-        for n, key in enumerate(model_rank):
-            print(f"rank_{n+1}_{key} {rank_by}:{outs[key][rank_by]:.2f}")
-
-    return outs, model_rank
+    return outs, list(outs.keys())

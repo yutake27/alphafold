@@ -284,10 +284,35 @@ for num_ensemble in num_ensembles:
     print('Ensemble', num_ensemble)
     opt['num_ensemble'] = num_ensemble
     outs_, structure_names_ = cf_af.run_alphafold(feature_dict, opt, runner, model_names, num_samples,
-                                                  subsample_msa, rank_by=rank_by, show_images=show_images,
-                                                  ranking=ranking, output_all_cycle=args.output_all_cycle)
+                                                  subsample_msa, show_images=show_images,
+                                                  output_all_cycle=args.output_all_cycle)
     outs.update(outs_)
     structure_names.extend(structure_names_)
+
+if ranking:  # rank output structures
+    structure_names = [structure_names[i] for i in np.argsort([outs[x][rank_by] for x in structure_names])[::-1]]
+    # Write out the prediction
+    for n, key in enumerate(structure_names):
+        prefix = f"rank_{n+1}_{key}"
+        pred_output_path = os.path.join(feature_dict["output_dir"], f'{prefix}.pdb')
+        if show_images:
+            fig = cf.plot_protein(outs[key]["unrelaxed_protein"], Ls=feature_dict["Ls"], dpi=200)
+            if save_images:
+                plt.savefig(os.path.join(feature_dict["output_dir"], f'{prefix}.png'), bbox_inches='tight')
+            plt.close(fig)
+        from alphafold.common import protein
+        pdb_lines = protein.to_pdb(outs[key]["unrelaxed_protein"])
+        with open(pred_output_path, 'w') as f:
+            f.write(pdb_lines)
+
+        tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}.pdb')
+        if os.path.isfile(tmp_pdb_path):
+            os.remove(tmp_pdb_path)
+
+    ############################################################
+    print(f"model rank based on {rank_by}")
+    for n, key in enumerate(structure_names):
+        print(f"rank_{n+1}_{key} {rank_by}:{outs[key][rank_by]:.2f}")
 
 alphafold_end_datetime = datetime.datetime.now()
 print(alphafold_end_datetime, 'Finish running alphafold')
