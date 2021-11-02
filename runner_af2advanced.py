@@ -447,7 +447,7 @@ def read_output_info_from_pkl(pkl_path):
 # Save plddt and pTM to csv
 def save_score_to_csv(filename):
     score_list = []
-    pattern = re.compile(r'^.*(model_[1-5](_ptm)?)_seed_(\d)_rec_(\d)_ens_(\d)$')
+    pattern = re.compile(r'^.*(model_[1-5](_ptm)?)_seed_(\d)_rec_(\d+)_ens_(\d)$')
     for out_pkl in Path(output_dir).glob("model_*.pickle"):
         model = out_pkl.stem
         model_name, _, seed, recycle, ensemble = pattern.search(model).groups()
