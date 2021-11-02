@@ -241,8 +241,8 @@ def from_prediction(features: FeatureDict, result: ModelOutput,
     b_factors = np.zeros_like(fold_output['final_atom_mask'])
 
   return Protein(
-      aatype=features['aatype'][0],
-      atom_positions=fold_output['final_atom_positions'],
-      atom_mask=fold_output['final_atom_mask'],
-      residue_index=features['residue_index'][0] + 1,
-      b_factors=b_factors)
+      aatype=np.asarray(features['aatype'][0]),
+      atom_positions=np.asarray(fold_output['final_atom_positions']),
+      atom_mask=np.asarray(fold_output['final_atom_mask']),
+      residue_index=np.asarray(features['residue_index'][0] + 1),
+      b_factors=np.asarray(b_factors))
