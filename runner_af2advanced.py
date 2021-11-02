@@ -10,6 +10,7 @@ import json
 import os
 import pickle
 import platform
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -310,11 +311,6 @@ if ranking:  # rank output structures
         if os.path.isfile(tmp_pdb_path):
             os.remove(tmp_pdb_path)
 
-        tmp_pickle_file = os.path.join(feature_dict["output_dir"], f'{key}.pickle')
-        if os.path.isfile(tmp_pickle_file):
-            rank_pickle_file = os.path.join(feature_dict["output_dir"], f'{prefix}.pickle')
-            shutil.move(tmp_pickle_file, rank_pickle_file)
-
     ############################################################
     print(f"model rank based on {rank_by}")
     for n, key in enumerate(structure_names):
@@ -439,25 +435,29 @@ def do_save_to_txt(filename, adj, dists, sequence):
                     out.write(f"{line}\n")
 
 
-def read_plddt_and_pTM_from_pkl(pkl_path):
+def read_output_info_from_pkl(pkl_path):
     with open(pkl_path, "rb") as f:
         o = pickle.load(f)
         plddt = o["pLDDT"] / 100
         ptm = o["pTMscore"] if "pTMscore" in o else None
-    return plddt, ptm
+        tol = o["tol"]
+    return plddt, ptm, tol
 
 
 # Save plddt and pTM to csv
 def save_score_to_csv(filename):
-    prefix = 'rank_' if ranking else 'model_'
     score_list = []
-    for out_pkl in Path(output_dir).glob(f"{prefix}*.pickle"):
+    pattern = re.compile(r'^.*(model_[1-5](_ptm)?)_seed_(\d)_rec_(\d)_ens_(\d)$')
+    for out_pkl in Path(output_dir).glob("model_*.pickle"):
         model = out_pkl.stem
-        plddt, ptm = read_plddt_and_pTM_from_pkl(out_pkl)
-        score_list.append((model, plddt, ptm))
-    df = pd.DataFrame(score_list, columns=["Model", "pLDDT", "pTMscore"])
+        model_name, _, seed, recycle, ensemble = pattern.search(model).groups()
+        plddt, ptm, tol = read_output_info_from_pkl(out_pkl)
+        score_list.append((model, plddt, ptm, tol, model_name, seed, recycle, ensemble))
+    df = pd.DataFrame(score_list, columns=["Model", "pLDDT", "pTMscore", "Tolerance",
+                                           "ModelName", "Seed", "Recycle", "Ensemble"])
     target_name = Path(args.input).stem
     df["Target"] = target_name
+    df = df.sort_values('Model').reset_index()
     df.to_csv(filename)
 
 
