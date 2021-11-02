@@ -10,6 +10,7 @@ import json
 import os
 import pickle
 import platform
+import shutil
 import sys
 from pathlib import Path
 
@@ -308,6 +309,11 @@ if ranking:  # rank output structures
         tmp_pdb_path = os.path.join(feature_dict["output_dir"], f'{key}.pdb')
         if os.path.isfile(tmp_pdb_path):
             os.remove(tmp_pdb_path)
+
+        tmp_pickle_file = os.path.join(feature_dict["output_dir"], f'{key}.pickle')
+        if os.path.isfile(tmp_pickle_file):
+            rank_pickle_file = os.path.join(feature_dict["output_dir"], f'{prefix}.pickle')
+            shutil.move(tmp_pickle_file, rank_pickle_file)
 
     ############################################################
     print(f"model rank based on {rank_by}")
