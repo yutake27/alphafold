@@ -300,7 +300,7 @@ class AlphaFold(hk.Module):
       List of Tuple[ret, recycle, tol].
 
       Recycle is a number of recycle.
-      Tol is a CA-RMSD between recycles
+      Tol is a CA-RMS between recycles.
 
       For ret,
       When compute_loss is True:
