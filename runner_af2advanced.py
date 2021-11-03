@@ -155,6 +155,44 @@ else:
 
 I = cf_af.prep_inputs(sequence, jobname, homooligomer, output_dir, clean=IN_COLAB)
 
+# --------set parameters from command-line arguments--------
+model = args.model
+num_CASP14_models = args.num_CASP14_models
+num_pTM_models = args.num_pTM_models
+max_recycles = args.max_recycles
+tol = args.tol
+is_training = True if args.is_training else False
+num_samples = args.num_samples
+ranking = not args.noranking
+# --------set parameters from command-line arguments--------
+
+subsample_msa = True  # @param {type:"boolean"}
+
+# Set models
+models_CASP14 = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][: num_CASP14_models]
+models_pTM = ['model_1_ptm', 'model_2_ptm', 'model_3_ptm', 'model_4_ptm', 'model_5_ptm'][: num_pTM_models]
+use_ptm = False
+if model == "CASP14":
+    model_names = models_CASP14
+elif model == "pTM":
+    model_names = models_pTM
+    use_ptm = True
+else:
+    model_names = models_CASP14 + models_pTM
+# print arguments
+print(f"Model: {model_names}")
+print(f"num_samples: {num_samples}")
+print(f"max_recycles: {max_recycles}")
+print(f"output_all_cycle: {args.output_all_cycle}")
+print(f"num_ensembles: {args.num_ensembles}")
+print(f"num_relax: {args.num_relax}")
+print(f"tol: {tol}")
+print(f"ranking: {ranking}")
+if ranking:
+    print(f"rank_by: {args.rank_by}")
+print(f"use_turbo: {args.use_turbo}")
+print(f"msa_method: {args.msa_method}")
+
 # MSA generation
 print()
 msa_prep_start_datetime = datetime.datetime.now()
@@ -230,31 +268,6 @@ max_msa = args.max_msa
 # --------set parameters from command-line arguments--------
 
 max_msa_clusters, max_extra_msa = [int(x) for x in max_msa.split(":")]
-
-# --------set parameters from command-line arguments--------
-model = args.model
-num_CASP14_models = args.num_CASP14_models
-num_pTM_models = args.num_pTM_models
-max_recycles = args.max_recycles
-tol = args.tol
-is_training = True if args.is_training else False
-num_samples = args.num_samples
-ranking = not args.noranking
-# --------set parameters from command-line arguments--------
-
-subsample_msa = True  # @param {type:"boolean"}
-
-# Set models
-models_CASP14 = ['model_1', 'model_2', 'model_3', 'model_4', 'model_5'][: num_CASP14_models]
-models_pTM = ['model_1_ptm', 'model_2_ptm', 'model_3_ptm', 'model_4_ptm', 'model_5_ptm'][: num_pTM_models]
-use_ptm = False
-if model == "CASP14":
-    model_names = models_CASP14
-elif model == "pTM":
-    model_names = models_pTM
-    use_ptm = True
-else:
-    model_names = models_CASP14 + models_pTM
 
 if not use_ptm and rank_by == "pTMscore":
     print("WARNING: models will be ranked by pLDDT, 'use_ptm' is needed to compute pTMscore")
