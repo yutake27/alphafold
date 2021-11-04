@@ -388,34 +388,25 @@ class AlphaFold(hk.Module):
         n, tol, prev, ret = body(carry)
         return (n, tol, prev), (n, tol, ret)
 
-      def unstack(result_tuple, length): # Convert a stacked tuple to a list
-        result_list = []
-        for i in range(length):
-          recycles = result_tuple[0][i]
-          tol = result_tuple[1][i]
-          ret = {key1: {key2: val2[i] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
-          result_list.append((recycles, tol, ret))
-        return result_list
-
       if hk.running_init():
         # When initializing the Haiku module, run one iteration of the
         # while_loop to initialize the Haiku modules used in `body`.
         recycles, tol, prev, ret = body((0, jnp.inf, prev))
-        result_list = [(recycles, tol, ret)]
+        ret_list = []
       else:
         (recycles, tol, prev), result_tuple = hk.scan(body_scan, (0, jnp.inf, prev), None, length=num_iter)
-        result_list = unstack(result_tuple, num_iter)
+        def get_ret(i):
+          recycle = result_tuple[0][i]
+          tol = result_tuple[1][i]
+          ret = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
+          return ret, recycle, tol
+        ret_list = [get_ret(i) for i in range(num_iter - 1)]  # Except the last cycle
     else:
       prev = {}
       num_iter = 0
       (recycles,tol) = 0, jnp.inf
-      result_list = [(recycles, tol, None)]
+      ret_list = []
 
-    ret_list = []
-    for i in range(num_iter - 1): # Except the last cycle
-      r, t, _ = result_list[i]
-      ret = result_list[i+1][2]
-      ret_list.append((ret, r, t))
     ret = do_call(prev=prev, recycle_idx=num_iter) # Last cycle
     if compute_loss:
         ret = ret[0], [ret[1]]
