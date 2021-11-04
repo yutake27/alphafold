@@ -386,36 +386,30 @@ class AlphaFold(hk.Module):
       def body_scan(carry, x): # For jax.lax.scan
         # First return values are used iteratively in scan and second return values are stacked.
         n, tol, prev, ret = body(carry)
+        if not return_representations:
+          del ret['representations']
         return (n, tol, prev), (n, tol, ret)
 
       if hk.running_init():
         # When initializing the Haiku module, run one iteration of the
         # while_loop to initialize the Haiku modules used in `body`.
-        recycles, tol, prev, ret = body((0, jnp.inf, prev))
-        ret_list = []
+        recycles, tol, prev, _ = body((0, jnp.inf, prev))
+        result_tuple = ()
       else:
         (recycles, tol, prev), result_tuple = hk.scan(body_scan, (0, jnp.inf, prev), None, length=num_iter)
-        def get_ret(i):
-          recycle = result_tuple[0][i]
-          tol = result_tuple[1][i]
-          ret = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
-          return ret, recycle, tol
-        ret_list = [get_ret(i) for i in range(num_iter - 1)]  # Except the last cycle
     else:
       prev = {}
       num_iter = 0
       (recycles,tol) = 0, jnp.inf
-      ret_list = []
+      result_tuple = ()
 
     ret = do_call(prev=prev, recycle_idx=num_iter) # Last cycle
     if compute_loss:
         ret = ret[0], [ret[1]]
-    ret_list.append((ret, recycles, tol))
 
     if not return_representations:
-      for ret, _, _ in ret_list:
-        del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
-    return ret_list
+      del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
+    return ret, recycles, tol, result_tuple
 
 
 class TemplatePairStack(hk.Module):

@@ -134,7 +134,7 @@ class RunModel:
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    ret_list = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    ret, recycles, tol, result_tuple = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
@@ -147,10 +147,17 @@ class RunModel:
                   tree.map_structure(lambda x: x.shape, result))
       return ret
 
-    if not ret_all_cycle:
-      ret = ret_list[-1]  # return last result
+    if not ret_all_cycle:  # Only return the last cycle
+      ret = (ret, recycles, tol)
       ret = iter_ret(ret)
       return ret
-    else:
+    else:  # Return all cycles
+      def get_ret(i):
+        recycle = result_tuple[0][i]
+        tol = result_tuple[1][i]
+        ret = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
+        return ret, recycle, tol
+      ret_list = [get_ret(i) for i in range(recycles - 1)]
+      ret_list.append((ret, recycles, tol))
       ret_list = [iter_ret(ret) for ret in ret_list]
       return ret_list
