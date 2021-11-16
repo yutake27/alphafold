@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright (c) 2021 Yoshitaka Moriwaki
+# Copied from https://github.com/YoshitakaMo/localcolabfold
+# Modified by Yuma Takei
+
 # Create execution environment for alphafold
 # 1. Download model parameter
 # 2. Download chemical property
