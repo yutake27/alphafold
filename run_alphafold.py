@@ -146,7 +146,7 @@ def predict_structure(
     timings[f'process_features_{model_name}'] = time.time() - t_0
 
     t_0 = time.time()
-    prediction_result = model_runner.predict(processed_feature_dict)
+    prediction_result_list = model_runner.predict(processed_feature_dict, ret_all_cycle=True)
     t_diff = time.time() - t_0
     timings[f'predict_and_compile_{model_name}'] = t_diff
     logging.info(
@@ -158,39 +158,41 @@ def predict_structure(
       model_runner.predict(processed_feature_dict)
       timings[f'predict_benchmark_{model_name}'] = time.time() - t_0
 
-    # Get mean pLDDT confidence metric.
-    plddt = prediction_result['plddt']
-    plddts[model_name] = np.mean(plddt)
+    for prediction_result, recycle in prediction_result_list:
+      model_name_recycle = f'{model_name}_recycle_{recycle}'
+      # Get mean pLDDT confidence metric.
+      plddt = prediction_result['plddt']
+      plddts[model_name_recycle] = np.mean(plddt)
 
-    # Save the model outputs.
-    result_output_path = os.path.join(output_dir, f'result_{model_name}.pkl')
-    with open(result_output_path, 'wb') as f:
-      pickle.dump(prediction_result, f, protocol=4)
+      # Save the model outputs.
+      result_output_path = os.path.join(output_dir, f'result_{model_name_recycle}.pkl')
+      with open(result_output_path, 'wb') as f:
+        pickle.dump(prediction_result, f, protocol=4)
 
-    # Add the predicted LDDT in the b-factor column.
-    # Note that higher predicted LDDT value means higher model confidence.
-    plddt_b_factors = np.repeat(
-        plddt[:, None], residue_constants.atom_type_num, axis=-1)
-    unrelaxed_protein = protein.from_prediction(
-        features=processed_feature_dict,
-        result=prediction_result,
-        b_factors=plddt_b_factors)
+      # Add the predicted LDDT in the b-factor column.
+      # Note that higher predicted LDDT value means higher model confidence.
+      plddt_b_factors = np.repeat(
+          plddt[:, None], residue_constants.atom_type_num, axis=-1)
+      unrelaxed_protein = protein.from_prediction(
+          features=processed_feature_dict,
+          result=prediction_result,
+          b_factors=plddt_b_factors)
 
-    unrelaxed_pdb_path = os.path.join(output_dir, f'unrelaxed_{model_name}.pdb')
-    with open(unrelaxed_pdb_path, 'w') as f:
-      f.write(protein.to_pdb(unrelaxed_protein))
+      unrelaxed_pdb_path = os.path.join(output_dir, f'unrelaxed_{model_name_recycle}.pdb')
+      with open(unrelaxed_pdb_path, 'w') as f:
+        f.write(protein.to_pdb(unrelaxed_protein))
 
-    # Relax the prediction.
-    t_0 = time.time()
-    relaxed_pdb_str, _, _ = amber_relaxer.process(prot=unrelaxed_protein)
-    timings[f'relax_{model_name}'] = time.time() - t_0
+      # Relax the prediction.
+      t_0 = time.time()
+      relaxed_pdb_str, _, _ = amber_relaxer.process(prot=unrelaxed_protein)
+      timings[f'relax_{model_name_recycle}'] = time.time() - t_0
 
-    relaxed_pdbs[model_name] = relaxed_pdb_str
+      relaxed_pdbs[f'{model_name_recycle}'] = relaxed_pdb_str
 
-    # Save the relaxed PDB.
-    relaxed_output_path = os.path.join(output_dir, f'relaxed_{model_name}.pdb')
-    with open(relaxed_output_path, 'w') as f:
-      f.write(relaxed_pdb_str)
+      # Save the relaxed PDB.
+      relaxed_output_path = os.path.join(output_dir, f'relaxed_{model_name_recycle}.pdb')
+      with open(relaxed_output_path, 'w') as f:
+        f.write(relaxed_pdb_str)
 
   # Rank by pLDDT and write out relaxed PDBs in rank order.
   ranked_order = []

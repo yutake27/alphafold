@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Code for constructing the model."""
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Union, List, Tuple
 
 from absl import logging
 from alphafold.common import confidence
@@ -117,7 +117,7 @@ class RunModel:
     logging.info('Output shape was %s', shape)
     return shape
 
-  def predict(self, feat: features.FeatureDict) -> Mapping[str, Any]:
+  def predict(self, feat: features.FeatureDict, ret_all_cycle: bool) -> List[Tuple[Mapping[str, Any], int]]:
     """Makes a prediction by inferencing the model on the provided features.
 
     Args:
@@ -125,17 +125,34 @@ class RunModel:
         RunModel.process_features.
 
     Returns:
-      A dictionary of model outputs.
+      A List of Tuple of a dictionary of model outputs and the recycle number.
     """
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result = self.apply(self.params, jax.random.PRNGKey(0), feat)
+    result, recycles, result_tuple = self.apply(self.params, jax.random.PRNGKey(0), feat)
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
-    jax.tree_map(lambda x: x.block_until_ready(), result)
-    result.update(get_confidence_metrics(result))
-    logging.info('Output shape was %s',
-                 tree.map_structure(lambda x: x.shape, result))
-    return result
+
+    def iter_result(result):
+      result_ = result[0]
+      jax.tree_map(lambda x: x.block_until_ready(), result_)
+      result_.update(get_confidence_metrics(result_))
+      logging.info('Output shape was %s',
+                   tree.map_structure(lambda x: x.shape, result_))
+      return result
+
+    if not ret_all_cycle:  # Return last cycles
+      ret = iter_result((result, recycles))
+      return ret
+    else:  # Return all cycles
+      def get_each_result(i):
+        recycles = result_tuple[0][i]
+        result = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[1].items()}
+        return result, recycles
+
+      result_list = [get_each_result(i) for i in range(recycles - 1)]
+      result_list.append(result)
+      ret_list = [iter_result(result) for result in result_list]
+      return ret_list

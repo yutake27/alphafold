@@ -365,21 +365,30 @@ class AlphaFold(hk.Module):
         # Eval mode or tests: use the maximum number of iterations.
         num_iter = self.config.num_recycle
 
-      body = lambda x: (x[0] + 1,  # pylint: disable=g-long-lambda
-                        get_prev(do_call(x[1], recycle_idx=x[0],
-                                         compute_loss=False)))
+      def body(x):
+        n, prev = x
+        ret = do_call(prev, recycle_idx=n, compute_loss=False)
+        prev_ = get_prev(ret)
+        return n+1, prev_, ret
+
+      def body_scan(carry, x):  # For jax.lax.scan
+        n, prev, ret = body(carry)
+        if not return_representations:
+          del ret['representations']
+        return (n, prev), (n, ret)
+
       if hk.running_init():
         # When initializing the Haiku module, run one iteration of the
         # while_loop to initialize the Haiku modules used in `body`.
-        _, prev = body((0, prev))
+        recycles, prev, _ = body((0, prev))
+        result_tuple = ()
       else:
-        _, prev = hk.while_loop(
-            lambda x: x[0] < num_iter,
-            body,
-            (0, prev))
+        (recycles, prev), result_tuple = hk.scan(body_scan, (0, prev), None, length=num_iter)
     else:
       prev = {}
       num_iter = 0
+      recycles = 0
+      result_tuple = ()
 
     ret = do_call(prev=prev, recycle_idx=num_iter)
     if compute_loss:
@@ -387,7 +396,7 @@ class AlphaFold(hk.Module):
 
     if not return_representations:
       del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
-    return ret
+    return ret, recycles, result_tuple
 
 
 class TemplatePairStack(hk.Module):
