@@ -405,7 +405,7 @@ class AlphaFold(hk.Module):
 
     ret = do_call(prev=prev, recycle_idx=num_iter) # Last cycle
     if compute_loss:
-        ret = ret[0], [ret[1]]
+      ret = ret[0], [ret[1]]
 
     if not return_representations:
       del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
