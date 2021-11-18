@@ -134,30 +134,29 @@ class RunModel:
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    ret, recycles, tol, result_tuple = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    result, recycles, tol, result_tuple = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
 
-    def iter_ret(ret: Tuple[Mapping[str, Any], int, float]) -> Tuple[Mapping[str, Any], int, float]:
-      result = ret[0]
-      jax.tree_map(lambda x: x.block_until_ready(), result)
-      result.update(get_confidence_metrics(result))
+    def iter_result(result: Tuple[Mapping[str, Any], int, float]) -> Tuple[Mapping[str, Any], int, float]:
+      result_ = result[0]
+      jax.tree_map(lambda x: x.block_until_ready(), result_)
+      result_.update(get_confidence_metrics(result_))
       logging.info('Output shape was %s',
-                  tree.map_structure(lambda x: x.shape, result))
-      return ret
+                   tree.map_structure(lambda x: x.shape, result_))
+      return result
 
     if not ret_all_cycle:  # Only return the last cycle
-      ret = (ret, recycles, tol)
-      ret = iter_ret(ret)
+      ret = iter_result((result, recycles, tol))
       return ret
     else:  # Return all cycles
-      def get_ret(i):
+      def get_each_result(i):
         recycle = result_tuple[0][i]
         tol = result_tuple[1][i]
-        ret = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
-        return ret, recycle, tol
-      ret_list = [get_ret(i) for i in range(recycles - 1)]
-      ret_list.append((ret, recycles, tol))
-      ret_list = [iter_ret(ret) for ret in ret_list]
+        result = {key1: {key2: val2[i + 1] for key2, val2 in val1.items()} for key1, val1 in result_tuple[2].items()}
+        return result, recycle, tol
+      result_list = [get_each_result(i) for i in range(recycles - 1)]
+      result_list.append((result, recycles, tol))
+      ret_list = [iter_result(result) for result in result_list]
       return ret_list
